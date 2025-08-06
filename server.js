@@ -10,6 +10,7 @@ import messageRoutes from './routes/messageRoutes.js';
 import groupRoutes from './routes/groupRoutes.js';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
+import { protect } from "./middlewares/authMiddleware.js";
 
 dotenv.config();
 
@@ -38,7 +39,7 @@ app.use(cors())
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
-app.use('/api/friends', friendRoutes);
+app.use('/api/friends', protect, friendRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/groups', groupRoutes);
 
