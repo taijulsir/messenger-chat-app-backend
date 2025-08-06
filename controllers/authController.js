@@ -23,21 +23,35 @@ export const register = async (req, res) => {
   });
 };
 
+
 export const login = async (req, res) => {
   const { email, password } = req.body;
-  const user = await User.findOne({ email }).select('-password');
 
-  if (!user || !(await user.comparePassword(password))) {
-    return res.status(400).json({ message: 'Invalid credentials' });
-  }
+  try {
+    // Find the user by email and exclude the password field from the result
+    const user = await User.findOne({ email })
 
-  const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1d' });
-  res.json({
-    user: {
-      name: user.name,
-      email: user.email,
-      friends: user.friends,
-      token
+  
+    // If user is not found or the password is incorrect, return an error
+    if (!user || !(await user.comparePassword(password))) {
+      return res.status(400).json({ message: 'Invalid credentials' });
     }
-  });
+
+    // Generate a JWT token with the user's ID, using a secret and setting an expiration time
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1d' });
+
+    // Send back a response with user details and the token
+    res.json({
+      user: {
+        name: user.name,
+        email: user.email,
+        friends: user.friends, // Add any additional user details if needed
+        token, // Return the generated token
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' }); // Handle any unexpected errors
+  }
 };
+
