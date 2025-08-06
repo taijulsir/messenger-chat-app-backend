@@ -12,6 +12,7 @@ import morgan from 'morgan';
 import dotenv from 'dotenv';
 import { protect } from "./middlewares/authMiddleware.js";
 import jwt from 'jsonwebtoken';
+import Message from "./models/messageModel.js";
 
 dotenv.config();
 
@@ -68,14 +69,44 @@ io.use((socket, next) => {
   });
 });
 
-// Socket.io connection handler
+let usersOnline = {};
+
 io.on('connection', (socket) => {
   console.log('A user connected', socket.id);
 
+  // Store the user and their socket ID (You will need a way to identify the user, e.g., using a user ID)
+  socket.on('register', (userId) => {
+    usersOnline[userId] = socket.id;
+    console.log(`User ${userId} connected with socket ID ${socket.id}`);
+  });
+
   // Listen for chat messages and emit to the intended recipient
-  socket.on('send_message', (messageData) => {
+  socket.on('send_message', async (messageData) => {
     console.log('Message sent:', messageData);
-    io.to(messageData.to).emit('receive_message', messageData);  // Send message to the 'to' user
+
+    // Emit the message to the intended recipient's socket
+    const recipientSocketId = usersOnline[messageData.to];
+
+    if (recipientSocketId) {
+      // Emit message to the user
+      io.to(recipientSocketId).emit('receive_message', messageData);
+
+      // Store the message in the database (assumes you have a `Message` model)
+      try {
+        const savedMessage = await Message.create({
+          from: messageData.from,
+          to: messageData.to,
+          content: messageData.content,
+          // timestamp: new Date().toLocaleTimeString(),
+        });
+
+        console.log('Message saved to DB:', savedMessage);
+      } catch (error) {
+        console.error('Error saving message:', error);
+      }
+    } else {
+      console.log('Recipient not connected');
+    }
   });
 
   // Listen for typing indicator and broadcast to other users
@@ -86,8 +117,20 @@ io.on('connection', (socket) => {
   // Handle disconnection
   socket.on('disconnect', () => {
     console.log('A user disconnected');
+    
+    // Remove the user from the online list when they disconnect
+    for (const [userId, socketId] of Object.entries(usersOnline)) {
+      if (socketId === socket.id) {
+        delete usersOnline[userId];
+        console.log(`User ${userId} disconnected`);
+        break;
+      }
+    }
   });
 });
+
+console.log(usersOnline)
+
 
 // Start the server
 server.listen(PORT, () => {
