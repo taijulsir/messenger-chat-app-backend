@@ -3,9 +3,9 @@ import { getUsers, getUserProfile, searchUsers } from '../controllers/userContro
 
 const router = Router();
 
+router.get('/search', searchUsers);
 router.get('/', getUsers);
 router.get('/:userId', getUserProfile);
-router.get('/search', searchUsers);
 
 
 export default router;

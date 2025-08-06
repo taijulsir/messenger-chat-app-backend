@@ -19,16 +19,21 @@ export const searchUsers = async (req, res) => {
   }
 
   try {
+
+
     // Find users by name or email (case-insensitive)
     const users = await User.find({
       $or: [
-        { name: { $regex: query, $options: 'i' } },
-        { email: { $regex: query, $options: 'i' } }
+        { name: { $regex: query, $options: 'i' } },  // Case-insensitive search by name
+        { email: { $regex: query, $options: 'i' } }  // Case-insensitive search by email
       ]
-    }).select('name email avatar');  // Only return name, email, and avatar for search results
+    }).select('name email');  // Only return name, email, and avatar for search results
 
-    res.status(200).json(users);
+
+    res.status(200).json(users);  // Return the list of users found
   } catch (error) {
-    res.status(500).json({ message: 'Error searching users', error });
+    console.error(error);
+    res.status(500).json({ message: 'Error searching users', error: error.message });
   }
 };
+
