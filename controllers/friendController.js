@@ -128,10 +128,10 @@ export const getSentRequests = async (req, res) => {
 
 // Cancel Friend Request
 export const cancelFriendRequest = async (req, res) => {
-  const { userId } = req.params; // User ID of the request to be canceled
+  const { requestId } = req.params; // User ID of the request to be canceled
 
   // Ensure that the request exists and belongs to the logged-in user (i.e., it was sent by them)
-  const request = await FriendRequest.findOne({ from: req.user._id, to: userId, status: 'pending' });
+  const request = await FriendRequest.findById(requestId);
 
   if (!request) {
     return res.status(404).json({ message: 'Friend request not found or already canceled' });
@@ -139,7 +139,7 @@ export const cancelFriendRequest = async (req, res) => {
 
   try {
     // Delete the friend request
-    await request.remove();
+   await FriendRequest.findByIdAndDelete(requestId)
 
     res.status(200).json({ message: 'Friend request has been canceled' });
   } catch (error) {

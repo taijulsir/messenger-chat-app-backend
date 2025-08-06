@@ -6,7 +6,7 @@ const router = Router();
 // Define the routes
 router.post('/', sendFriendRequest); // Send friend request
 router.put('/:userId', acceptFriendRequest); // Accept friend request
-router.delete('/:userId', cancelFriendRequest); // Cancel friend request
+router.delete('/:requestId', cancelFriendRequest); // Cancel friend request
 router.get('/incoming', getIncomingRequests); // Get incoming friend requests
 router.get('/sent', getSentRequests); // Get sent friend requests
 router.put('/reject/:userId', rejectFriendRequest); // Reject friend request

@@ -1,4 +1,6 @@
 import User from '../models/userModel.js';
+import FriendRequest from '../models/friendRequestModel.js';
+
 
 export const getUsers = async (req, res) => {
   const users = await User.find();
@@ -11,8 +13,9 @@ export const getUserProfile = async (req, res) => {
 };
 
 
+
 export const searchUsers = async (req, res) => {
-  const { _id: userId } = req.user;
+  const { _id: userId } = req.user; // Logged-in user's ID
   const { query } = req.query; // Get the search query from the request
 
   if (!query) {
@@ -20,19 +23,33 @@ export const searchUsers = async (req, res) => {
   }
 
   try {
+    // Step 1: Get a list of users that the logged-in user has already interacted with (either sent or received requests)
+    const friendRequests = await FriendRequest.find({
+      $or: [
+        { from: userId }, // Friend requests sent by the logged-in user
+        { to: userId } // Friend requests received by the logged-in user
+      ]
+    }).select('from to'); // We need only the from and to fields to exclude these users
 
+    // Create an array of user IDs that the logged-in user has already interacted with
+    const excludedUserIds = friendRequests.map((request) => {
+      return request.from.toString() === userId.toString() ? request.to : request.from;
+    });
 
-    // Find users by name or email (case-insensitive)
+    // Step 2: Find users by name or email (case-insensitive) and exclude the logged-in user and users they have already interacted with
     const users = await User.find({
       $or: [
         { name: { $regex: query, $options: 'i' } },  // Case-insensitive search by name
         { email: { $regex: query, $options: 'i' } }  // Case-insensitive search by email
       ],
-      _id: { $ne: userId }  // Exclude the user searching for
-    }).select('name email');  // Only return name, email, and avatar for search results
+      _id: { $nin: [userId, ...excludedUserIds] }  // Exclude the logged-in user and users they've interacted with
+    }).select('name email');  // Only return name, email for search results
 
+    if (users.length === 0) {
+      return res.status(404).json({ message: 'No users found' });
+    }
 
-    res.status(200).json(users);  // Return the list of users found
+    res.status(200).json(users); // Return the list of users found
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error searching users', error: error.message });

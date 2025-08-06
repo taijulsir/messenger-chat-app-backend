@@ -17,30 +17,15 @@ const protect = async (req, res, next) => {
             // Attach the user to the request object
             req.user = await User.findById(decoded.id).select('-password'); // Exclude password field
 
-            console.log({
-                token,
-                header: req.headers.authorization,
-                user: req.user,
-                from: "in"
-            })
+          
             next(); // Continue to the next middleware/controller
         } catch (error) {
-            console.log({
-                token,
-                header: req.headers.authorization,
-                user: req.user,
-                from: "error"
-            })
+           
             res.status(401).json({ message: 'Not authorized, token failed' });
         }
     }
 
-    console.log({
-        token,
-        header: req.headers.authorization,
-        user: req.user,
-        from: "outside"
-    })
+   
     // If no token is found
     if (!token) {
         res.status(401).json({ message: 'Not authorized, no token' });
