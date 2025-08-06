@@ -1,13 +1,17 @@
 import FriendRequest from '../models/friendRequestModel.js';
-import User from '../models/userModel.js';
+import Friend from '../models/friendModel.js';
 
 // Send Friend Request
 export const sendFriendRequest = async (req, res) => {
-  const { from, to } = req.body;
+  const { to } = req.body;
+  const from = req.user._id;
 
   // Check if the users are already friends
-  const existingFriendship = await User.findOne({ 
-    $and: [{ _id: from }, { friends: to }] 
+  const existingFriendship = await Friend.findOne({
+    $or: [
+      { userId: from, friendId: to },
+      { userId: to, friendId: from }
+    ]
   });
 
   if (existingFriendship) {
@@ -37,10 +41,10 @@ export const sendFriendRequest = async (req, res) => {
 
 // Accept Friend Request
 export const acceptFriendRequest = async (req, res) => {
-  const { userId } = req.params;
+  const { requestId } = req.params;
 
   // Find the friend request
-  const request = await FriendRequest.findById(userId);
+  const request = await FriendRequest.findById(requestId);
 
   if (!request) {
     return res.status(404).json({ message: 'Friend request not found' });
@@ -58,23 +62,26 @@ export const acceptFriendRequest = async (req, res) => {
   request.status = 'accepted';
   await request.save();
 
-  // Add the users to each other's friends list
-  const fromUser = await User.findById(request.from);
-  const toUser = await User.findById(request.to);
+  // Create friendship in Friend model
+  const newFriend = new Friend({
+    userId: request.from,
+    friendId: request.to,
+  });
 
-  // Check if they're already friends
-  if (!fromUser.friends.includes(request.to)) {
-    fromUser.friends.push(request.to);
-    await fromUser.save();
+  try {
+    await newFriend.save();
+    const reverseFriendship = new Friend({
+      userId: request.to,
+      friendId: request.from,
+    });
+    await reverseFriendship.save();
+
+    res.status(200).json({ message: 'Friend request accepted' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error creating friendship', error });
   }
-
-  if (!toUser.friends.includes(request.from)) {
-    toUser.friends.push(request.from);
-    await toUser.save();
-  }
-
-  res.status(200).json({ message: 'Friend request accepted' });
 };
+
 
 // Reject Friend Request (for incoming requests)
 export const rejectFriendRequest = async (req, res) => {
@@ -139,11 +146,21 @@ export const cancelFriendRequest = async (req, res) => {
 
   try {
     // Delete the friend request
-   await FriendRequest.findByIdAndDelete(requestId)
+    await FriendRequest.findByIdAndDelete(requestId)
 
     res.status(200).json({ message: 'Friend request has been canceled' });
   } catch (error) {
     res.status(500).json({ message: 'Error canceling friend request', error: error.message });
+  }
+};
+
+export const getMyFriends = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const friends = await Friend.find({ userId: userId }).populate("friendId")
+    res.status(200).json(friends);
+  } catch (error) {
+    res.status(500).json({ message: 'Error getting friends', error: error.message });
   }
 };
 
