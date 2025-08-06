@@ -4,6 +4,6 @@ import { sendMessage, getMessages } from '../controllers/messageController.js';
 const router = Router();
 
 router.post('/', sendMessage);
-router.get('/:chatId', getMessages);
+router.get('/:friendId', getMessages);
 
 export default router;

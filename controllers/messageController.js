@@ -31,15 +31,28 @@ export const sendMessage = async (req, res) => {
 
 // In messageController.js
 export const getMessages = async (req, res) => {
-  const chatId = req.params.chatId;
+  const { friendId } = req.params; // friendId is passed as a query parameter
+  const userId = req.user._id; // The logged-in user ID
 
   try {
-    const messages = await Message.find({ chatId })
-      .populate('from', 'name email avatar')
-      .populate('to', 'name email avatar');
+    // Find the chat between the logged-in user and the selected friend
+    const chat = await Chat.findOne({
+      participants: { $all: [userId, friendId] }, // Both users must be in the chat
+    });
 
-    res.json(messages);
+    if (!chat) {
+      return res.status(200).json({ message: 'No chat found between these users' });
+    }
+
+    // If the chat exists, fetch the messages for this chat
+    const messages = await Message.find({ chatId: chat._id })
+      .populate('from', 'name email image')
+      .populate('to', 'name email image');
+
+    res.json(messages); // Return the messages
   } catch (error) {
+    console.log("direct error")
+    console.error(error);
     res.status(500).json({ message: 'Error fetching messages', error: error.message });
   }
 };

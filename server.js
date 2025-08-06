@@ -13,6 +13,7 @@ import dotenv from 'dotenv';
 import { protect } from "./middlewares/authMiddleware.js";
 import jwt from 'jsonwebtoken';
 import Message from "./models/messageModel.js";
+import { Chat } from "./models/chatModel.js";
 
 dotenv.config();
 
@@ -46,10 +47,10 @@ app.use(cors());
 
 // API routes
 app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
+app.use('/api/users', protect, userRoutes);
 app.use('/api/friends', protect, friendRoutes);
-app.use('/api/messages', messageRoutes);
-app.use('/api/groups', groupRoutes);
+app.use('/api/messages', protect, messageRoutes);
+app.use('/api/groups', protect, groupRoutes);
 
 
 // Middleware for authenticating socket connections
@@ -74,51 +75,51 @@ let usersOnline = {};
 io.on('connection', (socket) => {
   console.log('A user connected', socket.id);
 
-  // Store the user and their socket ID (You will need a way to identify the user, e.g., using a user ID)
   socket.on('register', (userId) => {
+    // Store the socket ID for the user
     usersOnline[userId] = socket.id;
     console.log(`User ${userId} connected with socket ID ${socket.id}`);
   });
 
-  // Listen for chat messages and emit to the intended recipient
+  // Listen for message events
   socket.on('send_message', async (messageData) => {
-    console.log('Message sent:', messageData);
-
-    // Emit the message to the intended recipient's socket
+    // Check if the recipient is connected
     const recipientSocketId = usersOnline[messageData.to];
 
     if (recipientSocketId) {
-      // Emit message to the user
+      // Emit the message to the recipient
       io.to(recipientSocketId).emit('receive_message', messageData);
 
-      // Store the message in the database (assumes you have a `Message` model)
-      try {
-        const savedMessage = await Message.create({
-          from: messageData.from,
-          to: messageData.to,
-          content: messageData.content,
-          // timestamp: new Date().toLocaleTimeString(),
-        });
+      // Create or get the chat ID
+      let chat = await Chat.findOne({
+        participants: { $all: [messageData.from, messageData.to] },
+      });
 
-        console.log('Message saved to DB:', savedMessage);
-      } catch (error) {
-        console.error('Error saving message:', error);
+      if (!chat) {
+        // Create a new chat if not found
+        chat = new Chat({
+          participants: [messageData.from, messageData.to],
+        });
+        await chat.save();
       }
+
+      // Save the message to the database
+      const newMessage = new Message({
+        from: messageData.from,
+        to: messageData.to,
+        chatId: chat._id,
+        content: messageData.content,
+      });
+
+      await newMessage.save();
     } else {
       console.log('Recipient not connected');
     }
   });
 
-  // Listen for typing indicator and broadcast to other users
-  socket.on('typing', (data) => {
-    socket.broadcast.emit('typing', data);  // Notify others that the user is typing
-  });
-
-  // Handle disconnection
   socket.on('disconnect', () => {
     console.log('A user disconnected');
-    
-    // Remove the user from the online list when they disconnect
+    // Remove user from online users
     for (const [userId, socketId] of Object.entries(usersOnline)) {
       if (socketId === socket.id) {
         delete usersOnline[userId];
@@ -129,7 +130,7 @@ io.on('connection', (socket) => {
   });
 });
 
-console.log(usersOnline)
+
 
 
 // Start the server
