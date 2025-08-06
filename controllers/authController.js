@@ -15,6 +15,7 @@ export const register = async (req, res) => {
   const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1d' });
   res.status(201).json({
     user: {
+      _id: user._id,
       name: user.name,
       email: user.email,
       friends: [],
@@ -43,6 +44,7 @@ export const login = async (req, res) => {
     // Send back a response with user details and the token
     res.json({
       user: {
+        _id: user._id,
         name: user.name,
         email: user.email,
         friends: user.friends, // Add any additional user details if needed

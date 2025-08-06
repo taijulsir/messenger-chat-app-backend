@@ -1,27 +1,14 @@
 import { Router } from 'express';
-import {
-  sendFriendRequest,
-  acceptFriendRequest,
-  rejectFriendRequest,
-  getIncomingRequests,
-  getSentRequests,
-} from '../controllers/friendController.js';
+import { sendFriendRequest, acceptFriendRequest, rejectFriendRequest, getIncomingRequests, getSentRequests, cancelFriendRequest } from '../controllers/friendController.js';
 
 const router = Router();
 
-// Send a friend request
-router.post('/', sendFriendRequest);
-
-// Accept a friend request
-router.put('/:userId', acceptFriendRequest);
-
-// Reject a friend request
-router.delete('/:userId', rejectFriendRequest);
-
-// Get all incoming friend requests
-router.get('/incoming', getIncomingRequests);
-
-// Get all sent friend requests
-router.get('/sent', getSentRequests);
+// Define the routes
+router.post('/', sendFriendRequest); // Send friend request
+router.put('/:userId', acceptFriendRequest); // Accept friend request
+router.delete('/:userId', cancelFriendRequest); // Cancel friend request
+router.get('/incoming', getIncomingRequests); // Get incoming friend requests
+router.get('/sent', getSentRequests); // Get sent friend requests
+router.put('/reject/:userId', rejectFriendRequest); // Reject friend request
 
 export default router;

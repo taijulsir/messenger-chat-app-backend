@@ -12,6 +12,7 @@ export const getUserProfile = async (req, res) => {
 
 
 export const searchUsers = async (req, res) => {
+  const { _id: userId } = req.user;
   const { query } = req.query; // Get the search query from the request
 
   if (!query) {
@@ -26,7 +27,8 @@ export const searchUsers = async (req, res) => {
       $or: [
         { name: { $regex: query, $options: 'i' } },  // Case-insensitive search by name
         { email: { $regex: query, $options: 'i' } }  // Case-insensitive search by email
-      ]
+      ],
+      _id: { $ne: userId }  // Exclude the user searching for
     }).select('name email');  // Only return name, email, and avatar for search results
 
 
