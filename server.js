@@ -90,7 +90,12 @@ io.on('connection', (socket) => {
       // Emit the message to the recipient
       io.to(recipientSocketId).emit('receive_message', messageData);
 
-      // Create or get the chat ID
+     
+    } else {
+      console.log('Recipient not connected, store the message in db');
+    }
+
+     // Create or get the chat ID
       let chat = await Chat.findOne({
         participants: { $all: [messageData.from, messageData.to] },
       });
@@ -112,9 +117,7 @@ io.on('connection', (socket) => {
       });
 
       await newMessage.save();
-    } else {
-      console.log('Recipient not connected');
-    }
+      console.log("message saved");
   });
 
   socket.on('disconnect', () => {
