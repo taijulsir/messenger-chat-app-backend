@@ -45,9 +45,9 @@ export const getMessages = async (req, res) => {
     }
 
     // If the chat exists, fetch the messages for this chat
-    const messages = await Message.find({ chatId: chat._id })
+    const messages = await Message.find({ chatId: chat._id }).sort({ timestamp: 1 })
       .populate('from', 'name email image')
-      .populate('to', 'name email image');
+      .populate('to', 'name email image')
 
     res.json(messages); // Return the messages
   } catch (error) {
