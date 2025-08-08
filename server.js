@@ -89,7 +89,6 @@ io.on('connection', (socket) => {
     if (recipientSocketId) {
       // Emit the message to the recipient
       io.to(recipientSocketId).emit('receive_message', messageData);
-
      
     } else {
       console.log('Recipient not connected, store the message in db');
@@ -119,6 +118,17 @@ io.on('connection', (socket) => {
       await newMessage.save();
       console.log("message saved");
   });
+
+  // Listen for typing events
+  socket.on('typing', (data) => {
+  const recipientSocketId = usersOnline[data.to];
+
+  if (recipientSocketId) {
+    // Emit typing indicator to the recipient user
+    io.to(recipientSocketId).emit('typing', { name: data.name ,to: data.to });
+  }
+});
+
 
   socket.on('disconnect', () => {
     console.log('A user disconnected');
