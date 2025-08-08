@@ -14,6 +14,7 @@ import { protect } from "./middlewares/authMiddleware.js";
 import jwt from 'jsonwebtoken';
 import Message from "./models/messageModel.js";
 import { Chat } from "./models/chatModel.js";
+import User from "./models/userModel.js";
 
 dotenv.config();
 
@@ -79,6 +80,9 @@ io.on('connection', (socket) => {
     // Store the socket ID for the user
     usersOnline[userId] = socket.id;
     console.log(`User ${userId} connected with socket ID ${socket.id}`);
+
+    // Emit the online status to all connected users
+    io.emit('user_status', { userId, status: 'online' });
   });
 
   // Listen for message events
@@ -89,58 +93,74 @@ io.on('connection', (socket) => {
     if (recipientSocketId) {
       // Emit the message to the recipient
       io.to(recipientSocketId).emit('receive_message', messageData);
-     
+
     } else {
       console.log('Recipient not connected, store the message in db');
     }
 
-     // Create or get the chat ID
-      let chat = await Chat.findOne({
-        participants: { $all: [messageData.from, messageData.to] },
+    // Create or get the chat ID
+    let chat = await Chat.findOne({
+      participants: { $all: [messageData.from, messageData.to] },
+    });
+
+    if (!chat) {
+      // Create a new chat if not found
+      chat = new Chat({
+        participants: [messageData.from, messageData.to],
       });
+      await chat.save();
+    }
 
-      if (!chat) {
-        // Create a new chat if not found
-        chat = new Chat({
-          participants: [messageData.from, messageData.to],
-        });
-        await chat.save();
-      }
+    // Save the message to the database
+    const newMessage = new Message({
+      from: messageData.from,
+      to: messageData.to,
+      chatId: chat._id,
+      content: messageData.content,
+    });
 
-      // Save the message to the database
-      const newMessage = new Message({
-        from: messageData.from,
-        to: messageData.to,
-        chatId: chat._id,
-        content: messageData.content,
-      });
-
-      await newMessage.save();
-      console.log("message saved");
+    await newMessage.save();
+    console.log("message saved");
   });
 
   // Listen for typing events
   socket.on('typing', (data) => {
-  const recipientSocketId = usersOnline[data.to];
+    const recipientSocketId = usersOnline[data.to];
 
-  if (recipientSocketId) {
-    // Emit typing indicator to the recipient user
-    io.to(recipientSocketId).emit('typing', { name: data.name ,to: data.to });
-  }
-});
+    if (recipientSocketId) {
+      // Emit typing indicator to the recipient user
+      io.to(recipientSocketId).emit('typing', { name: data.name, to: data.to });
+    }
+  });
 
 
-  socket.on('disconnect', () => {
+  socket.on('disconnect', async () => {
     console.log('A user disconnected');
-    // Remove user from online users
     for (const [userId, socketId] of Object.entries(usersOnline)) {
       if (socketId === socket.id) {
         delete usersOnline[userId];
         console.log(`User ${userId} disconnected`);
+
+        // Use await to ensure the update is completed before emitting the offline status
+        try {
+          const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            { lastActive: new Date() },
+            { new: true } // This will return the updated document
+          );
+
+          console.log(`User ${userId} last active time updated: ${updatedUser.lastActive}`);
+
+          // Emit the offline status to all users
+          io.emit('user_status', { userId, status: 'offline', lastActive: updatedUser.lastActive });
+        } catch (err) {
+          console.error(`Error updating last active time for user ${userId}:`, err);
+        }
         break;
       }
     }
   });
+
 });
 
 
